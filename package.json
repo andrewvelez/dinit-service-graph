@@ -1,12 +1,13 @@
 {
   "name": "dinit-service-graph",
-  "module": "index.ts",
+  "module": "src/dinit-graph.js",
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/node": "^25.6.0"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^6.0.3"
   }
 }
