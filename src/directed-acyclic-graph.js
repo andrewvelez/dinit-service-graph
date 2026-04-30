@@ -8,27 +8,24 @@
  * by: Andrew Velez
  */
 
-/**
- * @template Vertex
- * @typedef {Map<Vertex, Set<Vertex>>} AdjacencyList
- */
+export default class DirectedAcyclicGraph {
 
-/**
- * @template Vertex
- */
-class DirectedAcyclicGraph {
+  /**
+   * @typedef {Map<string, Set<string>>} AdjacencyList
+   */
+
   /**
    * Creates a new directed acyclic graph.
    *
-   * @param {AdjacencyList<Vertex>} [adjacencyList] Optional initial adjacency list.
-   * @throws {Error} If the initial adjacency list references a missing vertex or contains a cycle.
+   * @param {AdjacencyList} [adjacencyList] Optional initial adjacency list.
+   * @throws {Error} If the initial adjacency list references a missing string or contains a cycle.
    */
   constructor(adjacencyList = new Map()) {
-    /** @type {AdjacencyList<Vertex>} */
+    /** @type {AdjacencyList} */
     this.adjacencyList = new Map();
 
-    for (const [vertex, neighbors] of adjacencyList) {
-      this.adjacencyList.set(vertex, new Set(neighbors));
+    for (const [string, neighbors] of adjacencyList) {
+      this.adjacencyList.set(string, new Set(neighbors));
     }
 
     this.validateReferences();
@@ -36,36 +33,36 @@ class DirectedAcyclicGraph {
   }
 
   /**
-   * Adds a vertex to the graph if it does not already exist.
+   * Adds a string to the graph if it does not already exist.
    *
-   * @param {Vertex} vertex The vertex to add.
-   * @returns {boolean} True if the vertex was added, false if it already existed.
+   * @param {string} string The string to add.
+   * @returns {boolean} True if the string was added, false if it already existed.
    */
-  addVertex(vertex) {
-    if (this.adjacencyList.has(vertex)) {
+  addstring(string) {
+    if (this.adjacencyList.has(string)) {
       return false;
     }
 
-    this.adjacencyList.set(vertex, new Set());
+    this.adjacencyList.set(string, new Set());
     return true;
   }
 
   /**
-   * Removes a vertex and all edges connected to it.
+   * Removes a string and all edges connected to it.
    *
-   * @param {Vertex} vertex The vertex to remove.
-   * @returns {boolean} True if the vertex was removed, false if it did not exist.
+   * @param {string} string The string to remove.
+   * @returns {boolean} True if the string was removed, false if it did not exist.
    */
-  removeVertex(vertex) {
-    if (!this.adjacencyList.has(vertex)) {
+  removestring(string) {
+    if (!this.adjacencyList.has(string)) {
       return false;
     }
 
     for (const neighbors of this.adjacencyList.values()) {
-      neighbors.delete(vertex);
+      neighbors.delete(string);
     }
 
-    this.adjacencyList.delete(vertex);
+    this.adjacencyList.delete(string);
     return true;
   }
 
@@ -75,14 +72,14 @@ class DirectedAcyclicGraph {
    * Both vertices must already exist in the graph. If the edge would create a
    * cycle, the edge is rolled back and an error is thrown.
    *
-   * @param {Vertex} source The source vertex.
-   * @param {Vertex} destination The destination vertex.
+   * @param {string} source The source string.
+   * @param {string} destination The destination string.
    * @returns {boolean} True if the edge was added, false if it already existed.
-   * @throws {Error} If either vertex does not exist or adding the edge would create a cycle.
+   * @throws {Error} If either string does not exist or adding the edge would create a cycle.
    */
   addEdgeBetweenVertices(source, destination) {
     const neighbors = this.getRequiredNeighbors(source, "Source");
-    this.assertVertexExists(destination, "Destination");
+    this.assertstringExists(destination, "Destination");
 
     if (neighbors.has(destination)) {
       return false;
@@ -104,10 +101,10 @@ class DirectedAcyclicGraph {
   /**
    * Adds a directed edge from source to destination.
    *
-   * @param {Vertex} source The source vertex.
-   * @param {Vertex} destination The destination vertex.
+   * @param {string} source The source string.
+   * @param {string} destination The destination string.
    * @returns {boolean} True if the edge was added, false if it already existed.
-   * @throws {Error} If either vertex does not exist or adding the edge would create a cycle.
+   * @throws {Error} If either string does not exist or adding the edge would create a cycle.
    */
   addEdge(source, destination) {
     return this.addEdgeBetweenVertices(source, destination);
@@ -116,8 +113,8 @@ class DirectedAcyclicGraph {
   /**
    * Removes the directed edge from source to destination.
    *
-   * @param {Vertex} source The source vertex.
-   * @param {Vertex} destination The destination vertex.
+   * @param {string} source The source string.
+   * @param {string} destination The destination string.
    * @returns {boolean} True if the edge was removed, false if it did not exist.
    */
   removeEdge(source, destination) {
@@ -128,60 +125,60 @@ class DirectedAcyclicGraph {
   /**
    * Performs a topological sort using Kahn's algorithm.
    *
-   * @returns {Vertex[]} Vertices in topological order.
+   * @returns {string[]} Vertices in topological order.
    * @throws {Error} If the graph contains a cycle.
    */
   topologicalSort() {
-    /** @type {Map<Vertex, number>} */
+    /** @type {Map<string, number>} */
     const inDegree = new Map();
 
-    for (const vertex of this.adjacencyList.keys()) {
-      inDegree.set(vertex, 0);
+    for (const string of this.adjacencyList.keys()) {
+      inDegree.set(string, 0);
     }
 
     for (const [source, neighbors] of this.adjacencyList) {
       for (const destination of neighbors) {
         if (!this.adjacencyList.has(destination)) {
           throw new Error(
-            `Vertex ${String(source)} has an edge to missing vertex ${String(destination)}`,
+            `string ${String(source)} has an edge to missing string ${String(destination)}`,
           );
         }
 
         const currentDegree = inDegree.get(destination);
         if (currentDegree === undefined) {
-          throw new Error(`Missing in-degree entry for vertex ${String(destination)}`);
+          throw new Error(`Missing in-degree entry for string ${String(destination)}`);
         }
 
         inDegree.set(destination, currentDegree + 1);
       }
     }
 
-    /** @type {Vertex[]} */
+    /** @type {string[]} */
     const queue = [];
 
-    for (const [vertex, degree] of inDegree) {
+    for (const [string, degree] of inDegree) {
       if (degree === 0) {
-        queue.push(vertex);
+        queue.push(string);
       }
     }
 
-    /** @type {Vertex[]} */
+    /** @type {string[]} */
     const result = [];
 
     let head = 0;
 
     while (head < queue.length) {
-      const vertex = /** @type {Vertex} */ (queue[head]);
+      const string = /** @type {string} */ (queue[head]);
       head += 1;
 
-      result.push(vertex);
+      result.push(string);
 
-      const neighbors = this.getRequiredNeighbors(vertex, "Source");
+      const neighbors = this.getRequiredNeighbors(string, "Source");
 
       for (const destination of neighbors) {
         const currentDegree = inDegree.get(destination);
         if (currentDegree === undefined) {
-          throw new Error(`Missing in-degree entry for vertex ${String(destination)}`);
+          throw new Error(`Missing in-degree entry for string ${String(destination)}`);
         }
 
         const nextDegree = currentDegree - 1;
@@ -203,30 +200,30 @@ class DirectedAcyclicGraph {
   /**
    * Gets all vertices in the graph.
    *
-   * @returns {Vertex[]} All vertices.
+   * @returns {string[]} All vertices.
    */
   getVertices() {
     return Array.from(this.adjacencyList.keys());
   }
 
   /**
-   * Gets all outgoing neighbors of a vertex.
+   * Gets all outgoing neighbors of a string.
    *
-   * @param {Vertex} vertex The vertex to inspect.
-   * @returns {Vertex[]} Neighbor vertices.
+   * @param {string} string The string to inspect.
+   * @returns {string[]} Neighbor vertices.
    */
-  getNeighbors(vertex) {
-    const neighbors = this.adjacencyList.get(vertex);
+  getNeighbors(string) {
+    const neighbors = this.adjacencyList.get(string);
     return neighbors === undefined ? [] : Array.from(neighbors);
   }
 
   /**
    * Gets all directed edges in the graph.
    *
-   * @returns {Array<[Vertex, Vertex]>} Source and destination pairs.
+   * @returns {Array<[string, string]>} Source and destination pairs.
    */
   getEdges() {
-    /** @type {Array<[Vertex, Vertex]>} */
+    /** @type {Array<[string, string]>} */
     const edges = [];
 
     for (const [source, neighbors] of this.adjacencyList) {
@@ -241,9 +238,9 @@ class DirectedAcyclicGraph {
   /**
    * Gets the number of vertices in the graph.
    *
-   * @returns {number} Vertex count.
+   * @returns {number} string count.
    */
-  getVertexCount() {
+  getstringCount() {
     return this.adjacencyList.size;
   }
 
@@ -263,20 +260,20 @@ class DirectedAcyclicGraph {
   }
 
   /**
-   * Checks whether a vertex exists in the graph.
+   * Checks whether a string exists in the graph.
    *
-   * @param {Vertex} vertex The vertex to check.
-   * @returns {boolean} True if the vertex exists.
+   * @param {string} string The string to check.
+   * @returns {boolean} True if the string exists.
    */
-  hasVertex(vertex) {
-    return this.adjacencyList.has(vertex);
+  hasstring(string) {
+    return this.adjacencyList.has(string);
   }
 
   /**
    * Checks whether an edge exists from source to destination.
    *
-   * @param {Vertex} source The source vertex.
-   * @param {Vertex} destination The destination vertex.
+   * @param {string} source The source string.
+   * @param {string} destination The destination string.
    * @returns {boolean} True if the edge exists.
    */
   hasEdge(source, destination) {
@@ -287,7 +284,7 @@ class DirectedAcyclicGraph {
   /**
    * Creates a deep copy of the graph.
    *
-   * @returns {DirectedAcyclicGraph<Vertex>} A new graph with the same vertices and edges.
+   * @returns {DirectedAcyclicGraph} A new graph with the same vertices and edges.
    */
   clone() {
     return new DirectedAcyclicGraph(this.adjacencyList);
@@ -311,63 +308,61 @@ class DirectedAcyclicGraph {
     /** @type {string[]} */
     const lines = [];
 
-    for (const [vertex, neighbors] of this.adjacencyList) {
+    for (const [string, neighbors] of this.adjacencyList) {
       const neighborNames = Array.from(neighbors, (neighbor) => String(neighbor));
-      lines.push(`${String(vertex)} -> ${neighborNames.join(", ")}`);
+      lines.push(`${String(string)} -> ${neighborNames.join(", ")}`);
     }
 
     return lines.join("\n");
   }
 
   /**
-   * Throws if a vertex does not exist.
+   * Throws if a string does not exist.
    *
-   * @param {Vertex} vertex The vertex to check.
-   * @param {string} label The vertex label to use in the error message.
+   * @param {string} string The string to check.
+   * @param {string} label The string label to use in the error message.
    * @returns {void}
-   * @throws {Error} If the vertex does not exist.
+   * @throws {Error} If the string does not exist.
    */
-  assertVertexExists(vertex, label) {
-    if (!this.adjacencyList.has(vertex)) {
-      throw new Error(`${label} vertex ${String(vertex)} does not exist in the graph`);
+  assertstringExists(string, label) {
+    if (!this.adjacencyList.has(string)) {
+      throw new Error(`${label} string ${String(string)} does not exist in the graph`);
     }
   }
 
   /**
-   * Gets the neighbor set for an existing vertex.
+   * Gets the neighbor set for an existing string.
    *
-   * @param {Vertex} vertex The vertex to inspect.
-   * @param {string} label The vertex label to use in the error message.
-   * @returns {Set<Vertex>} The vertex's neighbor set.
-   * @throws {Error} If the vertex does not exist.
+   * @param {string} string The string to inspect.
+   * @param {string} label The string label to use in the error message.
+   * @returns {Set<string>} The string's neighbor set.
+   * @throws {Error} If the string does not exist.
    */
-  getRequiredNeighbors(vertex, label) {
-    const neighbors = this.adjacencyList.get(vertex);
+  getRequiredNeighbors(string, label) {
+    const neighbors = this.adjacencyList.get(string);
 
     if (neighbors === undefined) {
-      throw new Error(`${label} vertex ${String(vertex)} does not exist in the graph`);
+      throw new Error(`${label} string ${String(string)} does not exist in the graph`);
     }
 
     return neighbors;
   }
 
   /**
-   * Validates that every edge points to a known vertex.
+   * Validates that every edge points to a known string.
    *
    * @returns {void}
-   * @throws {Error} If an edge points to a missing vertex.
+   * @throws {Error} If an edge points to a missing string.
    */
   validateReferences() {
     for (const [source, neighbors] of this.adjacencyList) {
       for (const destination of neighbors) {
         if (!this.adjacencyList.has(destination)) {
           throw new Error(
-            `Vertex ${String(source)} has an edge to missing vertex ${String(destination)}`,
+            `string ${String(source)} has an edge to missing string ${String(destination)}`,
           );
         }
       }
     }
   }
 }
-
-export default DirectedAcyclicGraph;

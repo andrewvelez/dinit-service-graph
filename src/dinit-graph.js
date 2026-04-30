@@ -8,7 +8,7 @@
 import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DirectedAcyclicGraph } from "./directed-acyclic-graph.js";
+import DirectedAcyclicGraph from "./directed-acyclic-graph.js";
 
 //region "Types"
 /**
@@ -110,11 +110,11 @@ function parseDirectoryProperties(targetDir) {
     files = fs.readdirSync(targetDir, { withFileTypes: true, recursive: true })
       .filter(dirent => !dirent.isDirectory());
   } catch (ex) {
-    console.error("Exception while trying to read directory.", ex)
+    console.error("Exception while trying to read directory.", ex);
   }
 
   for(let service of files) {
-    let absoluteFilepath = path.join(service.parentPath, service.name));
+    let absoluteFilepath = path.join(service.parentPath, service.name);
     let properties = parseFileProperties(absoluteFilepath);
     if (propMap.get(absoluteFilepath) == undefined) {
       propMap.set(absoluteFilepath, properties);
