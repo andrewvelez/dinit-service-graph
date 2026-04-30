@@ -3,11 +3,19 @@
   "module": "src/dinit-graph.js",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^25.6.0"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"
+  },
+  "bin": {
+    "dinit-graph": "dist/dinit-dependency-graph"
+  },
+  "scripts": {
+    "clean": "bun run clean && rm -rf dist",
+    "build": "bun run build && bun test"
   }
 }
