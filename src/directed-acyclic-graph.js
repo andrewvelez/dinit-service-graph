@@ -16,7 +16,6 @@ export default class DirectedAcyclicGraph {
 
   /**
    * Creates a new directed acyclic graph.
-   *
    * @param {AdjacencyList} [adjacencyList] Optional initial adjacency list.
    * @throws {Error} If the initial adjacency list references a missing string or contains a cycle.
    */

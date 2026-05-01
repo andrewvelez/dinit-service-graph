@@ -15,7 +15,7 @@ import DirectedAcyclicGraph from "./directed-acyclic-graph.js";
  * @readonly
  * @enum(string)
  */
-const DependencyName = Object.freeze({
+const DEPENDENCY_TYPES = Object.freeze({
   DependsOn: "depends-on",
   DependsMs: "depends-ms",
   WaitsFor: "waits-for",
@@ -27,14 +27,15 @@ const DependencyName = Object.freeze({
   ChainTo: "chain-to"
 });
 
+const REGEX_PATTERN_DEP_PROPS = `^\\s*(depends-on|depends-ms|waits-for|depends-on\\.d|depends-ms\\.d|waits-for\\.d|after|before|chain-to)\\s*[:=]\\s*([^#\\s]+.*?)(?:\\s+|#|$)`;
+
 /**
  * @typedef {string} ServiceDirectoryPath
  * @typedef {string} ServiceFilePath
- * @typedef {typeof DependencyName[keyof typeof DependencyName]} DependencyKind
+ * @typedef {typeof DEPENDENCY_TYPES[keyof typeof DEPENDENCY_TYPES]} DependencyKind
  * @typedef {{dependency: DependencyKind, namedService: string}} Dependency
  * @property {DependencyKind} propertyName
  * @property {ServiceFilePath} value
- * 
  */
 //endregion "Types"
 
@@ -56,7 +57,7 @@ function serviceDirFromOptions(args) {
 }
 
 /** @type {ReadonlySet<string>} */
-const DependencyKinds = new Set(Object.values(DependencyName));
+const DependencyKinds = new Set(Object.values(DEPENDENCY_TYPES));
 
 /**
  * @param {string} value
@@ -67,32 +68,62 @@ function isDependencyKind(value) {
 }
 
 /**
+ * Reads an entire file's contents and returns as a utf-8 string
+ * @param {string} pathToFile
+ * @returns {string}
+ */
+function readFileContents(pathToFile) {
+  try {
+    let contents = fs.readFileSync(pathToFile, "utf-8");
+    return contents;
+  } catch (e) {
+    throw new Error("Could not read file.");
+  }
+}
+
+/**
+ * Parses the regex per line
+ * @param {string} line 
+ * @returns {Dependency | undefined}
+ */
+function parseLineProperties(line) {
+  let property;
+
+  try {
+    const results = line.match(REGEX_PATTERN_DEP_PROPS);
+    if (results && results[1] && results[2]) {
+      property = /** @type {Dependency} */ ({dependency: results[1], namedService: results[2]});
+    } else {
+      property = undefined;
+    }
+  } catch (ex) {
+    property = undefined;
+  }
+  
+  return property;
+}
+
+/**
  * Process all non-directory files in a directory recursively
  * @param {ServiceFilePath} absPath - The directory path to scan
  * @returns {Dependency[]}
  */
 function parseFileProperties(absPath) {
   /** @type {Dependency[]} */
-  let props = [];
-  let contents = "";
+  let fileProperties = [];
+  /** @type {Dependency | undefined} */
+  let newProperty;
 
-  let dependencyTypes = "depends-on|depends-ms|waits-for|depends-on\\.d|depends-ms\\.d|waits-for\\.d|after|before|chain-to";
-  let propPattern = `^\\s*(${dependencyTypes})\\s*[:=]\\s*([^#\\s]+.*?)(?:\\s+|#|$)`;
-
-  try {
-    contents = fs.readFileSync(absPath, "utf-8");
-  } catch (ex) {
-    console.error("exception while trying to read file", ex)
-  }
+  let contents = readFileContents(absPath);
 
   for(let line of contents.split('\n')) {
-    let results = line.match(propPattern);
-    if (results != null && results[1] != null && results[2] != null && isDependencyKind(results[1])) {
-      props.push({dependency: results[1], namedService: results[2]});
+    newProperty = parseLineProperties(line);
+    if (newProperty) {
+      fileProperties.push(newProperty);
     }
   }
 
-  return props;
+  return fileProperties;
 }
 
 /**
