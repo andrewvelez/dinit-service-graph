@@ -354,3 +354,183 @@ describe("DirectedAcyclicGraph", () => {
     });
   });
 });
+
+/**
+ * @param {string[][]} actual
+ * @param {string[][]} expected
+ */
+function expectLevelsToEqual(actual, expected) {
+  expect(actual).toEqual(expected);
+}
+
+describe("DirectedAcyclicGraph.topologicalLevels", () => {
+  test("returns an empty array for an empty graph", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    expectLevelsToEqual(graph.topologicalLevels(), []);
+  });
+
+  test("puts a single vertex on level 0", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a"]]);
+  });
+
+  test("puts disconnected vertices on level 0", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a", "b", "c"]]);
+  });
+
+  test("puts a simple chain into separate levels", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+
+    graph.addEdge("a", "b");
+    graph.addEdge("b", "c");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a"], ["b"], ["c"]]);
+  });
+
+  test("puts multiple starting vertices on level 0", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("database");
+    graph.addVertex("network");
+    graph.addVertex("api");
+    graph.addVertex("frontend");
+
+    graph.addEdge("database", "api");
+    graph.addEdge("network", "api");
+    graph.addEdge("api", "frontend");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [
+      ["database", "network"],
+      ["api"],
+      ["frontend"],
+    ]);
+  });
+
+  test("puts a vertex with multiple dependencies one level after its deepest dependency", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+    graph.addVertex("d");
+
+    graph.addEdge("a", "b");
+    graph.addEdge("b", "c");
+    graph.addEdge("a", "d");
+    graph.addEdge("c", "d");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a"], ["b"], ["c"], ["d"]]);
+  });
+
+  test("allows a vertex with multiple level 0 dependencies to appear on level 1", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+
+    graph.addEdge("a", "c");
+    graph.addEdge("b", "c");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a", "b"], ["c"]]);
+  });
+
+  test("keeps unrelated vertices at level 0", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+    graph.addVertex("d");
+
+    graph.addEdge("a", "b");
+    graph.addEdge("b", "c");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a", "d"], ["b"], ["c"]]);
+  });
+
+  test("handles branching edges", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+    graph.addVertex("d");
+
+    graph.addEdge("a", "b");
+    graph.addEdge("a", "c");
+    graph.addEdge("b", "d");
+    graph.addEdge("c", "d");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a"], ["b", "c"], ["d"]]);
+  });
+
+  test("updates levels after adding an edge that changes the cached topological order", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+
+    graph.addEdge("b", "c");
+    graph.addEdge("a", "b");
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a"], ["b"], ["c"]]);
+  });
+
+  test("returns levels from a constructor-provided adjacency list", () => {
+    const graph = new DirectedAcyclicGraph(
+      new Map([
+        ["a", new Set(["b", "c"])],
+        ["b", new Set(["d"])],
+        ["c", new Set(["d"])],
+        ["d", new Set()],
+      ]),
+    );
+
+    expectLevelsToEqual(graph.topologicalLevels(), [["a"], ["b", "c"], ["d"]]);
+  });
+
+  test("does not mutate the graph", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+    graph.addVertex("b");
+    graph.addVertex("c");
+
+    graph.addEdge("a", "b");
+    graph.addEdge("b", "c");
+
+    const firstResult = graph.topologicalLevels();
+    const secondResult = graph.topologicalLevels();
+
+    expectLevelsToEqual(firstResult, [["a"], ["b"], ["c"]]);
+    expectLevelsToEqual(secondResult, [["a"], ["b"], ["c"]]);
+  });
+
+  test("returns a new outer array each time", () => {
+    const graph = new DirectedAcyclicGraph();
+
+    graph.addVertex("a");
+
+    const firstResult = graph.topologicalLevels();
+    const secondResult = graph.topologicalLevels();
+
+    expect(firstResult).not.toBe(secondResult);
+    expect(firstResult).toEqual(secondResult);
+  });
+});

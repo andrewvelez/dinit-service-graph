@@ -40,8 +40,9 @@ const REGEX_PATTERN_DEP_PROPS = `^\\s*(depends-on|depends-ms|waits-for|depends-o
 /**
  * @param {string[]} args
  * @returns {string}
+ * @exports
  */
-function serviceDirFromOptions(args) {
+export function serviceDirFromOptions(args) {
   let usage = `dinit-graph <service-directory>`;
 
   if (!args || args.length == 0 || args[0] === undefined) {
@@ -82,8 +83,9 @@ function readFileContents(pathToFile) {
  * Parses the regex per line
  * @param {string} line 
  * @returns {Dependency | undefined}
+ * @exports
  */
-function parseLineProperties(line) {
+export function parseLineProperties(line) {
   let property;
 
   try {
@@ -104,8 +106,9 @@ function parseLineProperties(line) {
  * Process all non-directory files in a directory recursively
  * @param {string} absPath - The directory path to scan
  * @returns {Dependency[]}
+ * @exports
  */
-function parseFileProperties(absPath) {
+export function parseFileProperties(absPath) {
   /** @type {Dependency[]} */
   let fileProperties = [];
   /** @type {Dependency | undefined} */
@@ -144,7 +147,7 @@ function getFilesOfDir(dir) {
  * @param {string} targetDir
  * @returns {Map<string, Dependency[]>}
  */
-function parseDirectoryProperties(targetDir) {
+export function parseDirectoryProperties(targetDir) {
   /** @type {Map<string, Dependency[]>} */
   let propMap = new Map();
   let files = getFilesOfDir(targetDir);
@@ -167,13 +170,14 @@ function parseDirectoryProperties(targetDir) {
  * @param {Map<string, Dependency[]>} allServiceProperties
  * @param {string} serviceDir 
  * @returns {DirectedAcyclicGraph}
+ * @exports
  */
-function addDependencies(depGraph, allServiceProperties, serviceDir) {
+export function addDependencies(depGraph, allServiceProperties, serviceDir) {
   let deps = allServiceProperties.get(serviceDir);
 
   if (deps && deps.length > 0) {
     for (let prop of deps.values()) {
-      if (prop.dependency == DEPENDENCY_TYPES.After || prop.dependency == DEPENDENCY_TYPES.ChainTo) {
+      if (prop.dependency == DEPENDENCY_TYPES.Before || prop.dependency == DEPENDENCY_TYPES.ChainTo) {
 
         if (depGraph.addVertex(prop.namedService)) {
           depGraph.addEdge(prop.namedService, serviceDir);
@@ -208,15 +212,21 @@ function addDependencies(depGraph, allServiceProperties, serviceDir) {
  * The main entrypoint for this CLI app, the command dinit-graph
  */
 function main_cli() {
-
+  
   let serviceDir = serviceDirFromOptions(process.argv.slice(2));
+  console.log("Parsing directory properties...", console.time);
   let allServiceProperties = parseDirectoryProperties(serviceDir);
 
   let depGraph = new DirectedAcyclicGraph();
   let bootService = path.join(serviceDir, "boot");
 
+  console.log("Building graph...", console.time);
   depGraph = addDependencies(depGraph, allServiceProperties, bootService);
-  depGraph.topologicalSort();
+  let graphAsString = depGraph.toTopologicalLevelString();
+  console.log(graphAsString);
 }
 
-main_cli();
+// @ts-ignore
+if (import.meta.main) {
+  main_cli();
+}

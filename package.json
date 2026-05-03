@@ -15,6 +15,6 @@
     "clean": "rm -rf dist",
     "typecheck": "tsc",
     "test": "bun test",
-    "build": "bun run clean && bun run typecheck && bun test && bun build src/dinit-graph.js --compile --outfile dist/dinit-dependency-graph"
+    "build": "bun run clean && bun run typecheck && bun build src/dinit-graph.js --compile --outfile dist/dinit-service-graph && bun test"
   }
 }

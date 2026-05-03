@@ -193,80 +193,40 @@ export default class DirectedAcyclicGraph {
    * Groups vertices into topological dependency levels.
    *
    * Level 0 contains vertices with no incoming edges.
-   * Each following level contains vertices whose dependencies are satisfied by earlier levels.
+   * Each following level contains vertices whose dependencies appear in earlier levels.
    *
    * @returns {string[][]} Vertices grouped by topological level.
-   * @throws {Error} If the graph contains a cycle.
    */
   topologicalLevels() {
     /** @type {Map<string, number>} */
-    const inDegree = new Map();
-
-    for (const vertex of this.#adjacencyList.keys()) {
-      inDegree.set(vertex, 0);
-    }
-
-    for (const [source, neighbors] of this.#adjacencyList) {
-      for (const destination of neighbors) {
-        const currentDegree = inDegree.get(destination);
-
-        if (currentDegree === undefined) {
-          throw new Error(
-            `vertex ${String(source)} has an edge to missing vertex ${String(destination)}`,
-          );
-        }
-
-        inDegree.set(destination, currentDegree + 1);
-      }
-    }
-
-    /** @type {string[]} */
-    let currentLevel = [];
-
-    for (const [vertex, degree] of inDegree) {
-      if (degree === 0) {
-        currentLevel.push(vertex);
-      }
-    }
+    const levelByVertex = new Map();
 
     /** @type {string[][]} */
     const levels = [];
 
-    let visitedCount = 0;
+    for (const source of this.#topologicalOrder) {
+      const sourceLevel = levelByVertex.get(source) ?? 0;
 
-    while (currentLevel.length > 0) {
-      levels.push(currentLevel);
-      visitedCount += currentLevel.length;
-
-      /** @type {string[]} */
-      const nextLevel = [];
-
-      for (const vertex of currentLevel) {
-        const neighbors = this.#adjacencyList.get(vertex);
-
-        if (neighbors === undefined) {
-          continue;
-        }
-
-        for (const destination of neighbors) {
-          const currentDegree = inDegree.get(destination);
-
-          if (currentDegree !== undefined) {
-            const nextDegree = currentDegree - 1;
-            inDegree.set(destination, nextDegree);
-
-            if (nextDegree === 0) {
-              nextLevel.push(destination);
-            }
-          }
-        }
+      if (levels[sourceLevel] === undefined) {
+        levels[sourceLevel] = [];
       }
 
-      currentLevel = nextLevel;
-    }
+      levels[sourceLevel].push(source);
 
-    if (visitedCount !== this.#adjacencyList.size) {
-      throw new Error("Graph contains a cycle, topological levels are not possible");
+      const neighbors = this.#adjacencyList.get(source);
+
+      if (neighbors === undefined) {
+        continue;
+      }
+
+      for (const destination of neighbors) {
+        const currentDestinationLevel = levelByVertex.get(destination) ?? 0;
+        const nextDestinationLevel = sourceLevel + 1;
+
+        if (nextDestinationLevel > currentDestinationLevel) {
+          levelByVertex.set(destination, nextDestinationLevel);
+        }
+      }
     }
 
     return levels;
