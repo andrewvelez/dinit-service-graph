@@ -5,15 +5,15 @@
  * by: Andrew Velez
  */
 
-import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import DirectedAcyclicGraph from "./directed-acyclic-graph.js";
 
 //region "Types"
+
 /**
  * @readonly
- * @enum(string)
+ * @enum {string}
  */
 const DEPENDENCY_TYPES = Object.freeze({
   DependsOn: "depends-on",
@@ -27,13 +27,43 @@ const DEPENDENCY_TYPES = Object.freeze({
   ChainTo: "chain-to"
 });
 
-const REGEX_PATTERN_DEP_PROPS = `^\\s*(depends-on|depends-ms|waits-for|depends-on\\.d|depends-ms\\.d|waits-for\\.d|after|before|chain-to)\\s*[:=]\\s*([^#\\s]+.*?)(?:\\s+|#|$)`;
+const REGEX_PATTERN_DEP_PROPS = /^\\s*(depends-on|depends-ms|waits-for|depends-on\\.d|depends-ms\\.d|waits-for\\.d|after|before|chain-to)\\s*[:=]\\s*([^#\\s]+.*?)(?:\\s+|#|$)/;
 
 /**
  * @typedef {typeof DEPENDENCY_TYPES[keyof typeof DEPENDENCY_TYPES]} DependencyKind
  * @typedef {{dependency: DependencyKind, namedService: string}} Dependency
  */
+
 //endregion "Types"
+
+//region "Path helpers"
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function toAbsolutePath(value) {
+  return path.resolve(value);
+}
+
+/**
+ * @param {fs.Dirent} dirent
+ * @returns {string}
+ */
+function servicePathFromDirent(dirent) {
+  return toAbsolutePath(path.join(dirent.parentPath, dirent.name));
+}
+
+/**
+ * @param {string} sourceFilePath
+ * @param {string} namedService
+ * @returns {string}
+ */
+function resolveNamedService(sourceFilePath, namedService) {
+  return toAbsolutePath(path.join(path.dirname(sourceFilePath), namedService));
+}
+
+//endregion "Path helpers"
 
 //region "Functions"
 
@@ -43,15 +73,14 @@ const REGEX_PATTERN_DEP_PROPS = `^\\s*(depends-on|depends-ms|waits-for|depends-o
  * @exports
  */
 export function serviceDirFromOptions(args) {
-  let usage = `dinit-graph <service-directory>`;
+  const usage = "dinit-graph <service-directory>";
 
-  if (!args || args.length == 0 || args[0] === undefined) {
+  if (!args || args.length === 0 || args[0] === undefined) {
     console.log(usage);
     process.exit(1);
   }
-  let filename = fs.realpathSync(args[0]);
 
-  return filename;
+  return toAbsolutePath(fs.realpathSync(args[0]));
 }
 
 /** @type {ReadonlySet<string>} */
@@ -66,65 +95,68 @@ function isDependencyKind(value) {
 }
 
 /**
- * Reads an entire file's contents and returns as a utf-8 string
+ * Reads an entire file's contents and returns it as a utf-8 string.
+ *
  * @param {string} pathToFile
  * @returns {string}
  */
 function readFileContents(pathToFile) {
   try {
-    let contents = fs.readFileSync(pathToFile, "utf-8");
-    return contents;
-  } catch (e) {
-    throw new Error("Could not read file.");
+    return fs.readFileSync(pathToFile, "utf-8");
+  } catch {
+    throw new Error(`Could not read file: ${pathToFile}`);
   }
 }
 
 /**
- * Parses the regex per line
- * @param {string} line 
+ * Parses one service-property line.
+ * This function does not resolve paths. It only parses syntax.
+ * @param {string} line
  * @returns {Dependency | undefined}
  * @exports
  */
 export function parseLineProperties(line) {
-  let property;
+  const results = line.match(REGEX_PATTERN_DEP_PROPS);
 
-  try {
-    const results = line.match(REGEX_PATTERN_DEP_PROPS);
-    if (results && results[1] && results[2]) {
-      property = /** @type {Dependency} */ ({ dependency: results[1], namedService: results[2] });
-    } else {
-      property = undefined;
-    }
-  } catch (ex) {
-    property = undefined;
+  if (!results || results[1] === undefined || results[2] === undefined) {
+    return undefined;
   }
 
-  return property;
+  const dependency = results[1];
+  const namedService = results[2];
+
+  if (!isDependencyKind(dependency)) {
+    return undefined;
+  }
+
+  return {
+    dependency,
+    namedService
+  };
 }
 
 /**
- * Process all non-directory files in a directory recursively
- * @param {string} absPath - The directory path to scan
+ * Parses all dependency properties from one service file.
+ * All returned namedService values are absolute pathnames.
+ * @param {string} serviceFilePath
  * @returns {Dependency[]}
  * @exports
  */
-export function parseFileProperties(absPath) {
+export function parseFileProperties(serviceFilePath) {
+  const absoluteServiceFilePath = toAbsolutePath(serviceFilePath);
+  const contents = readFileContents(absoluteServiceFilePath);
+
   /** @type {Dependency[]} */
-  let fileProperties = [];
-  /** @type {Dependency | undefined} */
-  let newProperty;
-  /** @type {string} */
-  let newPath;
+  const fileProperties = [];
 
-  let contents = readFileContents(absPath);
+  for (const line of contents.split("\\n")) {
+    const property = parseLineProperties(line);
 
-  for (let line of contents.split('\n')) {
-    newProperty = parseLineProperties(line);
-    if (newProperty) {
-      newPath = absPath.substring(0, absPath.lastIndexOf("/"));
-      newPath = path.join(newPath, newProperty.namedService);
-      newProperty.namedService = newPath;
-      fileProperties.push(newProperty);
+    if (property !== undefined) {
+      fileProperties.push({
+        dependency: property.dependency,
+        namedService: resolveNamedService(absoluteServiceFilePath, property.namedService)
+      });
     }
   }
 
@@ -132,80 +164,113 @@ export function parseFileProperties(absPath) {
 }
 
 /**
- * Gets the service files from the dir
- * @param {string} dir 
- * @returns {fs.Dirent[]}
+ * Gets all non-directory service files from a directory recursively.
+ * All returned values are absolute pathnames.
+ * @param {string} dir
+ * @returns {string[]}
  */
 function getFilesOfDir(dir) {
-  let files = [];
+  const absoluteDir = toAbsolutePath(dir);
+
   try {
-    files = fs.readdirSync(dir, { withFileTypes: true, recursive: true })
-      .filter(dirent => !dirent.isDirectory());
+    return fs.readdirSync(absoluteDir, { withFileTypes: true, recursive: true })
+      .filter(dirent => !dirent.isDirectory())
+      .map(servicePathFromDirent);
   } catch (ex) {
     console.error("Exception while trying to read directory.", ex);
     throw ex;
   }
-  return files;
 }
 
 /**
+ * Parses every service file in a directory.
+ *
+ * All map keys are absolute pathnames.
+ * All dependency namedService values are absolute pathnames.
+ *
  * @param {string} targetDir
  * @returns {Map<string, Dependency[]>}
+ * @exports
  */
 export function parseDirectoryProperties(targetDir) {
   /** @type {Map<string, Dependency[]>} */
-  let propMap = new Map();
-  let files = getFilesOfDir(targetDir);
+  const propMap = new Map();
 
-  for (let service of files) {
-    let absoluteFilepath = path.join(service.parentPath, service.name);
-    let properties = parseFileProperties(absoluteFilepath);
-    if (propMap.get(absoluteFilepath) == undefined) {
-      propMap.set(absoluteFilepath, properties);
-    }
+  const serviceFiles = getFilesOfDir(targetDir);
+
+  for (const serviceFilePath of serviceFiles) {
+    propMap.set(serviceFilePath, parseFileProperties(serviceFilePath));
   }
 
   return propMap;
 }
 
 /**
- * Adds the dependencies found in the serviceDir to the graph and if needed,
+ * Adds the dependencies found in the serviceDir to the graph and, if needed,
  * calls itself recursively to add children.
- * @param {DirectedAcyclicGraph} depGraph 
+ *
+ * All vertices are absolute pathnames.
+ *
+ * @param {DirectedAcyclicGraph} depGraph
  * @param {Map<string, Dependency[]>} allServiceProperties
- * @param {string} serviceDir 
+ * @param {string} serviceFilePath
  * @returns {DirectedAcyclicGraph}
  * @exports
  */
-export function addDependencies(depGraph, allServiceProperties, serviceDir) {
-  let deps = allServiceProperties.get(serviceDir);
-  depGraph.addVertex(serviceDir);
+export function addDependencies(depGraph, allServiceProperties, serviceFilePath) {
+  const absoluteServiceFilePath = toAbsolutePath(serviceFilePath);
+  const deps = allServiceProperties.get(absoluteServiceFilePath);
 
-  if (deps && deps.length > 0) {
-    for (let prop of deps.values()) {
-      if (prop.dependency == DEPENDENCY_TYPES.Before || prop.dependency == DEPENDENCY_TYPES.ChainTo) {
+  depGraph.addVertex(absoluteServiceFilePath);
 
-        if (depGraph.addVertex(prop.namedService)) {
-          depGraph.addEdge(prop.namedService, serviceDir);
-          depGraph = addDependencies(depGraph, allServiceProperties, prop.namedService);
-        }
+  if (!deps || deps.length === 0) {
+    return depGraph;
+  }
 
-      } else if (prop.dependency == DEPENDENCY_TYPES.DependsOnD || prop.dependency == DEPENDENCY_TYPES.WaitsForD
-        || prop.dependency == DEPENDENCY_TYPES.DependsMsD) {
+  for (const prop of deps.values()) {
+    const targetServicePath = toAbsolutePath(prop.namedService);
 
-          let files = getFilesOfDir(prop.namedService);
-          for (let service of files.values()) {
-            depGraph = addDependencies(depGraph, allServiceProperties, path.join(service.parentPath, service.name));
-          }
+    if (
+      prop.dependency === DEPENDENCY_TYPES.Before ||
+      prop.dependency === DEPENDENCY_TYPES.ChainTo
+    ) {
+      const wasAdded = depGraph.addVertex(targetServicePath);
 
-      } else {
-        if (depGraph.addVertex(prop.namedService)) {
+      depGraph.addEdge(targetServicePath, absoluteServiceFilePath);
 
-          depGraph.addEdge(serviceDir, prop.namedService);
-          depGraph = addDependencies(depGraph, allServiceProperties, prop.namedService);
+      if (wasAdded) {
+        depGraph = addDependencies(depGraph, allServiceProperties, targetServicePath);
+      }
 
+      continue;
+    }
+
+    if (
+      prop.dependency === DEPENDENCY_TYPES.DependsOnD ||
+      prop.dependency === DEPENDENCY_TYPES.WaitsForD ||
+      prop.dependency === DEPENDENCY_TYPES.DependsMsD
+    ) {
+      const serviceFiles = getFilesOfDir(targetServicePath);
+
+      for (const childServicePath of serviceFiles.values()) {
+        const wasAdded = depGraph.addVertex(childServicePath);
+
+        depGraph.addEdge(absoluteServiceFilePath, childServicePath);
+
+        if (wasAdded) {
+          depGraph = addDependencies(depGraph, allServiceProperties, childServicePath);
         }
       }
+
+      continue;
+    }
+
+    const wasAdded = depGraph.addVertex(targetServicePath);
+
+    depGraph.addEdge(absoluteServiceFilePath, targetServicePath);
+
+    if (wasAdded) {
+      depGraph = addDependencies(depGraph, allServiceProperties, targetServicePath);
     }
   }
 
@@ -215,21 +280,24 @@ export function addDependencies(depGraph, allServiceProperties, serviceDir) {
 //endregion "Functions"
 
 /**
- * The main entrypoint for this CLI app, the command dinit-graph
+ * The main entrypoint for this CLI app, the command dinit-graph.
  */
 function main_cli() {
-  
-  let serviceDir = serviceDirFromOptions(process.argv.slice(2));
-  console.log("Parsing directory properties...", console.time);
-  let allServiceProperties = parseDirectoryProperties(serviceDir);
+  const serviceDir = serviceDirFromOptions(process.argv.slice(2));
+
+  console.log("Parsing directory properties...");
+  const allServiceProperties = parseDirectoryProperties(serviceDir);
 
   let depGraph = new DirectedAcyclicGraph();
-  let bootService = path.join(serviceDir, "boot");
+  const bootService = path.join(serviceDir, "boot");
 
-  console.log("Building graph...", console.time);
+  console.log("Building graph...");
   depGraph = addDependencies(depGraph, allServiceProperties, bootService);
+
   let graphAsString = depGraph.toTopologicalLevelString();
+
   graphAsString = graphAsString.replaceAll(serviceDir, "");
+
   console.log(graphAsString);
 }
 
