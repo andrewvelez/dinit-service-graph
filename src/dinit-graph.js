@@ -27,7 +27,7 @@ const DEPENDENCY_TYPES = Object.freeze({
   ChainTo: "chain-to"
 });
 
-const REGEX_PATTERN_DEP_PROPS = /^\\s*(depends-on|depends-ms|waits-for|depends-on\\.d|depends-ms\\.d|waits-for\\.d|after|before|chain-to)\\s*[:=]\\s*([^#\\s]+.*?)(?:\\s+|#|$)/;
+const REGEX_PATTERN_DEP_PROPS = /^\s*(depends-on|depends-ms|waits-for|depends-on\.d|depends-ms\.d|waits-for\.d|after|before|chain-to)\s*[:=]\s*([^#\s]+.*?)(?:\s+|#|$)/;
 
 /**
  * @typedef {typeof DEPENDENCY_TYPES[keyof typeof DEPENDENCY_TYPES]} DependencyKind
@@ -55,11 +55,17 @@ function servicePathFromDirent(dirent) {
 }
 
 /**
+ * Resolves a service name found inside a service file to an absolute pathname.
+ *
  * @param {string} sourceFilePath
  * @param {string} namedService
  * @returns {string}
  */
 function resolveNamedService(sourceFilePath, namedService) {
+  if (path.isAbsolute(namedService)) {
+    return toAbsolutePath(namedService);
+  }
+
   return toAbsolutePath(path.join(path.dirname(sourceFilePath), namedService));
 }
 
@@ -149,7 +155,7 @@ export function parseFileProperties(serviceFilePath) {
   /** @type {Dependency[]} */
   const fileProperties = [];
 
-  for (const line of contents.split("\\n")) {
+  for (const line of contents.split("\n")) {
     const property = parseLineProperties(line);
 
     if (property !== undefined) {
