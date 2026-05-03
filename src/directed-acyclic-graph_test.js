@@ -2,8 +2,31 @@ import { describe, expect, test } from "bun:test";
 import DirectedAcyclicGraph from "./directed-acyclic-graph.js";
 
 /**
- * @param {string[]} order
- * @param {Array<[string, string]>} edges
+ * @typedef {Map<string, Set<string>>} AdjacencyList
+ */
+
+/**
+ * Creates an adjacency list with explicit JSDoc-friendly types.
+ *
+ * @param {Array<[string, string[]]>} entries
+ * @returns {AdjacencyList}
+ */
+function createAdjacencyList(entries) {
+  /** @type {AdjacencyList} */
+  const adjacencyList = new Map();
+
+  for (const [vertex, neighbors] of entries) {
+    adjacencyList.set(vertex, new Set(neighbors));
+  }
+
+  return adjacencyList;
+}
+
+/**
+ * Validates that the provided order respects the direction of the provided edges.
+ *
+ * @param {string[]} order The topological order to verify.
+ * @param {Array<[string, string]>} edges The list of edges [source, destination].
  */
 function expectValidTopologicalOrder(order, edges) {
   const positionByVertex = new Map(order.map((vertex, index) => [vertex, index]));
@@ -28,42 +51,55 @@ describe("DirectedAcyclicGraph", () => {
     test("creates an empty graph by default", () => {
       const graph = new DirectedAcyclicGraph();
 
-      expect(graph.getVertices()).toEqual([]);
-      expect(graph.getEdges()).toEqual([]);
-      expect(graph.getstringCount()).toBe(0);
-      expect(graph.getEdgeCount()).toBe(0);
       expect(graph.topologicalSort()).toEqual([]);
-      expect(graph.toString()).toBe("");
+    });
+
+    test("accepts an empty explicit adjacency list", () => {
+      const graph = new DirectedAcyclicGraph(new Map());
+
+      expect(graph.topologicalSort()).toEqual([]);
     });
 
     test("creates a graph from an adjacency list", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b", "c"])],
-          ["b", new Set(["d"])],
-          ["c", new Set(["d"])],
-          ["d", new Set()],
-        ]),
-      );
-
-      expect(graph.getVertices()).toEqual(["a", "b", "c", "d"]);
-      expect(graph.getNeighbors("a")).toEqual(["b", "c"]);
-      expect(graph.getNeighbors("b")).toEqual(["d"]);
-      expect(graph.getEdges()).toEqual([
+      const edges = /** @type {Array<[string, string]>} */ ([
         ["a", "b"],
         ["a", "c"],
         ["b", "d"],
         ["c", "d"],
       ]);
-      expect(graph.getstringCount()).toBe(4);
-      expect(graph.getEdgeCount()).toBe(4);
-      expectValidTopologicalOrder(graph.topologicalSort(), graph.getEdges());
+
+      const graph = new DirectedAcyclicGraph(
+        createAdjacencyList([
+          ["a", ["b", "c"]],
+          ["b", ["d"]],
+          ["c", ["d"]],
+          ["d", []],
+        ]),
+      );
+
+      const order = graph.topologicalSort();
+
+      expect(order).toHaveLength(4);
+      expect(new Set(order)).toEqual(new Set(["a", "b", "c", "d"]));
+      expectValidTopologicalOrder(order, edges);
+    });
+
+    test("preserves isolated vertices from an adjacency list", () => {
+      const graph = new DirectedAcyclicGraph(
+        createAdjacencyList([
+          ["a", []],
+          ["b", []],
+          ["c", []],
+        ]),
+      );
+
+      expect(graph.topologicalSort()).toEqual(["a", "b", "c"]);
     });
 
     test("deep-copies the provided adjacency list", () => {
-      const adjacencyList = new Map([
-        ["a", new Set(["b"])],
-        ["b", new Set()],
+      const adjacencyList = createAdjacencyList([
+        ["a", ["b"]],
+        ["b", []],
       ]);
 
       const graph = new DirectedAcyclicGraph(adjacencyList);
@@ -71,368 +107,250 @@ describe("DirectedAcyclicGraph", () => {
       adjacencyList.get("a")?.add("c");
       adjacencyList.set("c", new Set());
 
-      expect(graph.getVertices()).toEqual(["a", "b"]);
-      expect(graph.getNeighbors("a")).toEqual(["b"]);
-      expect(graph.hasstring("c")).toBe(false);
+      expect(graph.topologicalSort()).toEqual(["a", "b"]);
     });
 
     test("throws when the initial adjacency list references a missing vertex", () => {
-      expect(
-        () =>
-          new DirectedAcyclicGraph(
-            new Map([
-              ["a", new Set(["b"])],
-            ]),
-          ),
-      ).toThrow("string a has an edge to missing string b");
+      expect(() => {
+        new DirectedAcyclicGraph(
+          createAdjacencyList([
+            ["a", ["b"]],
+          ]),
+        );
+      }).toThrow("vertex a has an edge to missing vertex b");
     });
 
     test("throws when the initial adjacency list contains a cycle", () => {
-      expect(
-        () =>
-          new DirectedAcyclicGraph(
-            new Map([
-              ["a", new Set(["b"])],
-              ["b", new Set(["c"])],
-              ["c", new Set(["a"])],
-            ]),
-          ),
-      ).toThrow("Graph contains a cycle, topological sort is not possible");
+      expect(() => {
+        new DirectedAcyclicGraph(
+          createAdjacencyList([
+            ["a", ["b"]],
+            ["b", ["c"]],
+            ["c", ["a"]],
+          ]),
+        );
+      }).toThrow("Graph contains a cycle, topological sort is not possible");
+    });
+
+    test("throws when the initial adjacency list contains a self-cycle", () => {
+      expect(() => {
+        new DirectedAcyclicGraph(
+          createAdjacencyList([
+            ["a", ["a"]],
+          ]),
+        );
+      }).toThrow("Graph contains a cycle, topological sort is not possible");
     });
   });
 
-  describe("vertices", () => {
+  describe("addVertex", () => {
     test("adds a new vertex", () => {
       const graph = new DirectedAcyclicGraph();
 
-      expect(graph.addstring("a")).toBe(true);
-      expect(graph.hasstring("a")).toBe(true);
-      expect(graph.getVertices()).toEqual(["a"]);
-      expect(graph.getstringCount()).toBe(1);
+      expect(graph.addVertex("a")).toBe(true);
+      expect(graph.topologicalSort()).toEqual(["a"]);
     });
 
     test("does not add a duplicate vertex", () => {
       const graph = new DirectedAcyclicGraph();
 
-      expect(graph.addstring("a")).toBe(true);
-      expect(graph.addstring("a")).toBe(false);
-      expect(graph.getVertices()).toEqual(["a"]);
-      expect(graph.getstringCount()).toBe(1);
+      expect(graph.addVertex("a")).toBe(true);
+      expect(graph.addVertex("a")).toBe(false);
+      expect(graph.topologicalSort()).toEqual(["a"]);
     });
 
-    test("removes an existing vertex", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
-          ["c", new Set(["b"])],
-        ]),
-      );
-
-      expect(graph.removestring("b")).toBe(true);
-      expect(graph.hasstring("b")).toBe(false);
-      expect(graph.getVertices()).toEqual(["a", "c"]);
-      expect(graph.getNeighbors("a")).toEqual([]);
-      expect(graph.getNeighbors("c")).toEqual([]);
-      expect(graph.getEdges()).toEqual([]);
-      expect(graph.getstringCount()).toBe(2);
-      expect(graph.getEdgeCount()).toBe(0);
-    });
-
-    test("returns false when removing a missing vertex", () => {
+    test("adds isolated vertices in insertion order", () => {
       const graph = new DirectedAcyclicGraph();
 
-      expect(graph.removestring("missing")).toBe(false);
-      expect(graph.getVertices()).toEqual([]);
-    });
+      graph.addVertex("a");
+      graph.addVertex("b");
+      graph.addVertex("c");
 
-    test("returns an empty neighbor list for a missing vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-
-      expect(graph.getNeighbors("missing")).toEqual([]);
+      expect(graph.topologicalSort()).toEqual(["a", "b", "c"]);
     });
   });
 
-  describe("edges", () => {
+  describe("addEdge", () => {
     test("adds an edge between existing vertices", () => {
       const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
-      graph.addstring("b");
+
+      graph.addVertex("a");
+      graph.addVertex("b");
 
       expect(graph.addEdge("a", "b")).toBe(true);
-      expect(graph.hasEdge("a", "b")).toBe(true);
-      expect(graph.getNeighbors("a")).toEqual(["b"]);
-      expect(graph.getEdges()).toEqual([["a", "b"]]);
-      expect(graph.getEdgeCount()).toBe(1);
-    });
-
-    test("addEdge delegates to addEdgeBetweenVertices", () => {
-      const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
-      graph.addstring("b");
-
-      expect(graph.addEdgeBetweenVertices("a", "b")).toBe(true);
-      expect(graph.hasEdge("a", "b")).toBe(true);
+      expect(graph.topologicalSort()).toEqual(["a", "b"]);
     });
 
     test("does not add a duplicate edge", () => {
       const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
-      graph.addstring("b");
+
+      graph.addVertex("a");
+      graph.addVertex("b");
 
       expect(graph.addEdge("a", "b")).toBe(true);
       expect(graph.addEdge("a", "b")).toBe(false);
-      expect(graph.getEdges()).toEqual([["a", "b"]]);
-      expect(graph.getEdgeCount()).toBe(1);
+      expect(graph.topologicalSort()).toEqual(["a", "b"]);
     });
 
     test("throws when adding an edge from a missing source vertex", () => {
       const graph = new DirectedAcyclicGraph();
-      graph.addstring("b");
+
+      graph.addVertex("b");
 
       expect(() => graph.addEdge("a", "b")).toThrow(
-        "Source string a does not exist in the graph",
+        "Source vertex a does not exist in the graph",
       );
-      expect(graph.getEdges()).toEqual([]);
+
+      expect(graph.topologicalSort()).toEqual(["b"]);
     });
 
     test("throws when adding an edge to a missing destination vertex", () => {
       const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
+
+      graph.addVertex("a");
 
       expect(() => graph.addEdge("a", "b")).toThrow(
-        "Destination string b does not exist in the graph",
+        "Destination vertex b does not exist in the graph",
       );
-      expect(graph.getEdges()).toEqual([]);
+
+      expect(graph.topologicalSort()).toEqual(["a"]);
     });
 
-    test("throws and rolls back when adding an edge would create a cycle", () => {
+    test("throws and leaves the graph valid when adding an edge would create a cycle", () => {
       const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set(["c"])],
-          ["c", new Set()],
+        createAdjacencyList([
+          ["a", ["b"]],
+          ["b", ["c"]],
+          ["c", []],
         ]),
       );
 
       expect(() => graph.addEdge("c", "a")).toThrow(
         "Adding edge c -> a would create a cycle in the graph",
       );
-      expect(graph.hasEdge("c", "a")).toBe(false);
-      expect(graph.getEdges()).toEqual([
+
+      expect(graph.topologicalSort()).toEqual(["a", "b", "c"]);
+
+      graph.addVertex("d");
+      expect(graph.addEdge("c", "d")).toBe(true);
+
+      const order = graph.topologicalSort();
+
+      expect(order).toHaveLength(4);
+      expect(new Set(order)).toEqual(new Set(["a", "b", "c", "d"]));
+      expectValidTopologicalOrder(order, [
         ["a", "b"],
         ["b", "c"],
+        ["c", "d"],
       ]);
-      expect(graph.topologicalSort()).toEqual(["a", "b", "c"]);
     });
 
-    test("removes an existing edge", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
-        ]),
-      );
-
-      expect(graph.removeEdge("a", "b")).toBe(true);
-      expect(graph.hasEdge("a", "b")).toBe(false);
-      expect(graph.getNeighbors("a")).toEqual([]);
-      expect(graph.getEdges()).toEqual([]);
-      expect(graph.getEdgeCount()).toBe(0);
-    });
-
-    test("returns false when removing a missing edge", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set()],
-          ["b", new Set()],
-        ]),
-      );
-
-      expect(graph.removeEdge("a", "b")).toBe(false);
-      expect(graph.removeEdge("missing", "b")).toBe(false);
-    });
-
-    test("returns false when checking an edge from a missing source", () => {
+    test("throws when adding a self-edge", () => {
       const graph = new DirectedAcyclicGraph();
 
-      expect(graph.hasEdge("missing", "b")).toBe(false);
+      graph.addVertex("a");
+
+      expect(() => graph.addEdge("a", "a")).toThrow(
+        "Adding edge a -> a would create a cycle in the graph",
+      );
+
+      expect(graph.topologicalSort()).toEqual(["a"]);
+    });
+
+    test("continues working after a failed cyclic edge addition", () => {
+      const graph = new DirectedAcyclicGraph(
+        createAdjacencyList([
+          ["a", ["b"]],
+          ["b", ["c"]],
+          ["c", []],
+          ["d", []],
+        ]),
+      );
+
+      expect(() => graph.addEdge("c", "a")).toThrow(
+        "Adding edge c -> a would create a cycle in the graph",
+      );
+
+      expect(graph.addEdge("c", "d")).toBe(true);
+
+      const order = graph.topologicalSort();
+
+      expect(order).toHaveLength(4);
+      expect(new Set(order)).toEqual(new Set(["a", "b", "c", "d"]));
+      expectValidTopologicalOrder(order, [
+        ["a", "b"],
+        ["b", "c"],
+        ["c", "d"],
+      ]);
+    });
+
+    test("allows an edge that requires recalculating the topological order", () => {
+      const graph = new DirectedAcyclicGraph();
+
+      graph.addVertex("a");
+      graph.addVertex("b");
+
+      expect(graph.topologicalSort()).toEqual(["a", "b"]);
+      expect(graph.addEdge("b", "a")).toBe(true);
+      expect(graph.topologicalSort()).toEqual(["b", "a"]);
     });
   });
 
   describe("topologicalSort", () => {
     test("returns vertices in topological order", () => {
+      const edges = /** @type {Array<[string, string]>} */ ([
+        ["build", "test"],
+        ["build", "lint"],
+        ["test", "package"],
+        ["lint", "package"],
+        ["package", "publish"],
+      ]);
+
       const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["build", new Set(["test", "lint"])],
-          ["test", new Set(["package"])],
-          ["lint", new Set(["package"])],
-          ["package", new Set(["publish"])],
-          ["publish", new Set()],
+        createAdjacencyList([
+          ["build", ["test", "lint"]],
+          ["test", ["package"]],
+          ["lint", ["package"]],
+          ["package", ["publish"]],
+          ["publish", []],
         ]),
       );
 
       const order = graph.topologicalSort();
 
       expect(order).toHaveLength(5);
-      expect(new Set(order)).toEqual(new Set(["build", "test", "lint", "package", "publish"]));
-      expectValidTopologicalOrder(order, graph.getEdges());
+      expect(new Set(order)).toEqual(
+        new Set(["build", "test", "lint", "package", "publish"]),
+      );
+      expectValidTopologicalOrder(order, edges);
     });
 
     test("returns isolated vertices too", () => {
       const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
-          ["c", new Set()],
+        createAdjacencyList([
+          ["a", ["b"]],
+          ["b", []],
+          ["c", []],
         ]),
       );
 
       expect(graph.topologicalSort()).toEqual(["a", "c", "b"]);
     });
 
-    test("throws if the graph is manually corrupted with a missing destination", () => {
-      const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
-      graph.adjacencyList.get("a")?.add("b");
-
-      expect(() => graph.topologicalSort()).toThrow(
-        "string a has an edge to missing string b",
-      );
-    });
-
-    test("throws if the graph is manually corrupted with a cycle", () => {
+    test("returned topological order can be mutated without corrupting the graph", () => {
       const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set()],
-          ["b", new Set()],
-        ]),
-      );
-      graph.adjacencyList.get("a")?.add("b");
-      graph.adjacencyList.get("b")?.add("a");
-
-      expect(() => graph.topologicalSort()).toThrow(
-        "Graph contains a cycle, topological sort is not possible",
-      );
-    });
-  });
-
-  describe("clone", () => {
-    test("returns an independent graph with the same vertices and edges", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
+        createAdjacencyList([
+          ["a", ["b"]],
+          ["b", []],
         ]),
       );
 
-      const clone = graph.clone();
+      const order = graph.topologicalSort();
 
-      expect(clone).toBeInstanceOf(DirectedAcyclicGraph);
-      expect(clone).not.toBe(graph);
-      expect(clone.getVertices()).toEqual(["a", "b"]);
-      expect(clone.getEdges()).toEqual([["a", "b"]]);
+      order.reverse();
+      order.push("fake");
 
-      clone.addstring("c");
-      clone.addEdge("b", "c");
-
-      expect(graph.getVertices()).toEqual(["a", "b"]);
-      expect(graph.getEdges()).toEqual([["a", "b"]]);
-      expect(clone.getVertices()).toEqual(["a", "b", "c"]);
-      expect(clone.getEdges()).toEqual([
-        ["a", "b"],
-        ["b", "c"],
-      ]);
-    });
-  });
-
-  describe("clear", () => {
-    test("removes all vertices and edges", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
-        ]),
-      );
-
-      graph.clear();
-
-      expect(graph.getVertices()).toEqual([]);
-      expect(graph.getEdges()).toEqual([]);
-      expect(graph.getstringCount()).toBe(0);
-      expect(graph.getEdgeCount()).toBe(0);
-      expect(graph.topologicalSort()).toEqual([]);
-    });
-  });
-
-  describe("toString", () => {
-    test("returns one adjacency line per vertex", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b", "c"])],
-          ["b", new Set()],
-          ["c", new Set()],
-        ]),
-      );
-
-      expect(graph.toString()).toBe("a -> b, c\nb -> \nc -> ");
-    });
-  });
-
-  describe("internal validation helpers", () => {
-    test("assertstringExists does nothing for an existing vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
-
-      expect(() => graph.assertstringExists("a", "Test")).not.toThrow();
-    });
-
-    test("assertstringExists throws for a missing vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-
-      expect(() => graph.assertstringExists("missing", "Test")).toThrow(
-        "Test string missing does not exist in the graph",
-      );
-    });
-
-    test("getRequiredNeighbors returns the underlying neighbor set for an existing vertex", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
-        ]),
-      );
-
-      expect(graph.getRequiredNeighbors("a", "Test")).toEqual(new Set(["b"]));
-    });
-
-    test("getRequiredNeighbors throws for a missing vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-
-      expect(() => graph.getRequiredNeighbors("missing", "Test")).toThrow(
-        "Test string missing does not exist in the graph",
-      );
-    });
-
-    test("validateReferences does nothing when all edges point to existing vertices", () => {
-      const graph = new DirectedAcyclicGraph(
-        new Map([
-          ["a", new Set(["b"])],
-          ["b", new Set()],
-        ]),
-      );
-
-      expect(() => graph.validateReferences()).not.toThrow();
-    });
-
-    test("validateReferences throws when an edge points to a missing vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-      graph.addstring("a");
-      graph.adjacencyList.get("a")?.add("b");
-
-      expect(() => graph.validateReferences()).toThrow(
-        "string a has an edge to missing string b",
-      );
+      expect(graph.topologicalSort()).toEqual(["a", "b"]);
     });
   });
 });

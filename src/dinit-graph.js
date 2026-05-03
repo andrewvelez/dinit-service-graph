@@ -30,12 +30,8 @@ const DEPENDENCY_TYPES = Object.freeze({
 const REGEX_PATTERN_DEP_PROPS = `^\\s*(depends-on|depends-ms|waits-for|depends-on\\.d|depends-ms\\.d|waits-for\\.d|after|before|chain-to)\\s*[:=]\\s*([^#\\s]+.*?)(?:\\s+|#|$)`;
 
 /**
- * @typedef {string} ServiceDirectoryPath
- * @typedef {string} ServiceFilePath
  * @typedef {typeof DEPENDENCY_TYPES[keyof typeof DEPENDENCY_TYPES]} DependencyKind
  * @typedef {{dependency: DependencyKind, namedService: string}} Dependency
- * @property {DependencyKind} propertyName
- * @property {ServiceFilePath} value
  */
 //endregion "Types"
 
@@ -52,8 +48,9 @@ function serviceDirFromOptions(args) {
     console.log(usage);
     process.exit(1);
   }
+  let filename = fs.realpathSync(args[0]);
 
-  return args[0];
+  return filename;
 }
 
 /** @type {ReadonlySet<string>} */
@@ -92,20 +89,20 @@ function parseLineProperties(line) {
   try {
     const results = line.match(REGEX_PATTERN_DEP_PROPS);
     if (results && results[1] && results[2]) {
-      property = /** @type {Dependency} */ ({dependency: results[1], namedService: results[2]});
+      property = /** @type {Dependency} */ ({ dependency: results[1], namedService: results[2] });
     } else {
       property = undefined;
     }
   } catch (ex) {
     property = undefined;
   }
-  
+
   return property;
 }
 
 /**
  * Process all non-directory files in a directory recursively
- * @param {ServiceFilePath} absPath - The directory path to scan
+ * @param {string} absPath - The directory path to scan
  * @returns {Dependency[]}
  */
 function parseFileProperties(absPath) {
@@ -116,7 +113,7 @@ function parseFileProperties(absPath) {
 
   let contents = readFileContents(absPath);
 
-  for(let line of contents.split('\n')) {
+  for (let line of contents.split('\n')) {
     newProperty = parseLineProperties(line);
     if (newProperty) {
       fileProperties.push(newProperty);
@@ -127,24 +124,32 @@ function parseFileProperties(absPath) {
 }
 
 /**
- * @param {ServiceDirectoryPath} targetDir
- * @returns {Map<ServiceFilePath, Dependency[]>}
+ * Gets the service files from the dir
+ * @param {string} dir 
+ * @returns {fs.Dirent[]}
  */
-function parseDirectoryProperties(targetDir) {
-  /** @type {Map<ServiceFilePath, Dependency[]>} */
-  let propMap = new Map();
-
-  /** @type {fs.Dirent[]} */
+function getFilesOfDir(dir) {
   let files = [];
-
   try {
-    files = fs.readdirSync(targetDir, { withFileTypes: true, recursive: true })
+    files = fs.readdirSync(dir, { withFileTypes: true, recursive: true })
       .filter(dirent => !dirent.isDirectory());
   } catch (ex) {
     console.error("Exception while trying to read directory.", ex);
+    throw ex;
   }
+  return files;
+}
 
-  for(let service of files) {
+/**
+ * @param {string} targetDir
+ * @returns {Map<string, Dependency[]>}
+ */
+function parseDirectoryProperties(targetDir) {
+  /** @type {Map<string, Dependency[]>} */
+  let propMap = new Map();
+  let files = getFilesOfDir(targetDir);
+
+  for (let service of files) {
     let absoluteFilepath = path.join(service.parentPath, service.name);
     let properties = parseFileProperties(absoluteFilepath);
     if (propMap.get(absoluteFilepath) == undefined) {
@@ -153,6 +158,48 @@ function parseDirectoryProperties(targetDir) {
   }
 
   return propMap;
+}
+
+/**
+ * Adds the dependencies found in the serviceDir to the graph and if needed,
+ * calls itself recursively to add children.
+ * @param {DirectedAcyclicGraph} depGraph 
+ * @param {Map<string, Dependency[]>} allServiceProperties
+ * @param {string} serviceDir 
+ * @returns {DirectedAcyclicGraph}
+ */
+function addDependencies(depGraph, allServiceProperties, serviceDir) {
+  let deps = allServiceProperties.get(serviceDir);
+
+  if (deps && deps.length > 0) {
+    for (let prop of deps.values()) {
+      if (prop.dependency == DEPENDENCY_TYPES.After || prop.dependency == DEPENDENCY_TYPES.ChainTo) {
+
+        if (depGraph.addVertex(prop.namedService)) {
+          depGraph.addEdge(prop.namedService, serviceDir);
+          depGraph = addDependencies(depGraph, allServiceProperties, prop.namedService);
+        }
+
+      } else if (prop.dependency == DEPENDENCY_TYPES.DependsOnD || prop.dependency == DEPENDENCY_TYPES.WaitsForD
+        || prop.dependency == DEPENDENCY_TYPES.DependsMsD) {
+
+          let files = getFilesOfDir(prop.namedService);
+          for (let service of files.values()) {
+            depGraph = addDependencies(depGraph, allServiceProperties, path.join(service.parentPath, service.name));
+          }
+
+      } else {
+        if (depGraph.addVertex(prop.namedService)) {
+
+          depGraph.addEdge(serviceDir, prop.namedService);
+          depGraph = addDependencies(depGraph, allServiceProperties, prop.namedService);
+
+        }
+      }
+    }
+  }
+
+  return depGraph;
 }
 
 //endregion "Functions"
@@ -164,29 +211,12 @@ function main_cli() {
 
   let serviceDir = serviceDirFromOptions(process.argv.slice(2));
   let allServiceProperties = parseDirectoryProperties(serviceDir);
-  
+
   let depGraph = new DirectedAcyclicGraph();
   let bootService = path.join(serviceDir, "boot");
 
-  if (!fs.existsSync(bootService)) {
-    throw new Error("boot service does not exist");
-  }
-
-  
-
-  // 4. Make new DAG, start at Boot service, add all namedServices as dependencies meaning they must start
-  // 4... before the targetService starts with the exception of 'after' and 'chain-to' which are modeled
-  // 4... as reverse dependencies. For the dependency types of '*.d', it is necessary to get the services within
-  // 4... the '.d' dir and add them as dependencies in the same way and that is recursive.
-
-  // 5. If a file is unreadable or an exception occurs, we skip that file and save the filename so I can
-  // 5... identify which service file is bad.
-
-  // 6. The DAG is already self-validating.  It doesn't allow vertices/edges to be added that would make the graph
-  // 6... invalid.  We will next sort the graph topologically and include in that tiers, meaning the graph may have
-  // 6... more than one starting vertex.  So, a set of vertices can start together, then another set can start
-  // 6... together, and so on.  That's the graph we will print out.
-
+  depGraph = addDependencies(depGraph, allServiceProperties, bootService);
+  depGraph.topologicalSort();
 }
 
 main_cli();
