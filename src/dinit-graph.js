@@ -113,12 +113,17 @@ export function parseFileProperties(absPath) {
   let fileProperties = [];
   /** @type {Dependency | undefined} */
   let newProperty;
+  /** @type {string} */
+  let newPath;
 
   let contents = readFileContents(absPath);
 
   for (let line of contents.split('\n')) {
     newProperty = parseLineProperties(line);
     if (newProperty) {
+      newPath = absPath.substring(0, absPath.lastIndexOf("/"));
+      newPath = path.join(newPath, newProperty.namedService);
+      newProperty.namedService = newPath;
       fileProperties.push(newProperty);
     }
   }
@@ -174,6 +179,7 @@ export function parseDirectoryProperties(targetDir) {
  */
 export function addDependencies(depGraph, allServiceProperties, serviceDir) {
   let deps = allServiceProperties.get(serviceDir);
+  depGraph.addVertex(serviceDir);
 
   if (deps && deps.length > 0) {
     for (let prop of deps.values()) {
@@ -223,6 +229,7 @@ function main_cli() {
   console.log("Building graph...", console.time);
   depGraph = addDependencies(depGraph, allServiceProperties, bootService);
   let graphAsString = depGraph.toTopologicalLevelString();
+  graphAsString = graphAsString.replaceAll(serviceDir, "");
   console.log(graphAsString);
 }
 

@@ -1,0 +1,12 @@
+$ sudo ./dist/dinit-service-graph /opt/dinit-0.21.0/doc/linux/services
+Parsing directory properties... [Function: time]
+Building graph... [Function: time]
+Level 0: /boot, /boot.d/dhcpcd, /boot.d/late-filesystems, /boot.d/modules, /boot.d/sshd
+Level 1: /tty1, /tty2, /tty3, /tty4, /tty5, /tty6, /boot.d/rcboot, /boot.d/netdev-enps3s0, /boot.d/early-filesystems, /boot.d/loginready, /boot.d/syslogd
+Level 2: /loginready
+Level 3: /rcboot, /dbusd, /syslogd
+Level 4: /filesystems
+Level 5: /udevd, /rootrw, /auxfscheck
+Level 6: /early-filesystems, /hwclock, /rootfscheck
+Level 7: /udev-settle
+Level 8: /udev-trigger
