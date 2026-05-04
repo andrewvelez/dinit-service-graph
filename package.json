@@ -9,7 +9,7 @@
     "typescript": "^6.0.3"
   },
   "bin": {
-    "dinit-graph": "dist/dinit-dependency-graph"
+    "dinit-graph": "dist/dinit-service-graph"
   },
   "scripts": {
     "clean": "rm -rf dist",

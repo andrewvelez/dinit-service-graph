@@ -9,8 +9,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import DirectedAcyclicGraph from "./directed-acyclic-graph.js";
 
-//region "Types"
-
 /**
  * @readonly
  * @enum {string}
@@ -27,16 +25,15 @@ const DEPENDENCY_TYPES = Object.freeze({
   ChainTo: "chain-to"
 });
 
-const REGEX_PATTERN_DEP_PROPS = /^\s*(depends-on|depends-ms|waits-for|depends-on\.d|depends-ms\.d|waits-for\.d|after|before|chain-to)\s*[:=]\s*([^#\s]+.*?)(?:\s+|#|$)/;
+const REGEX_PATTERN_DEP_PROPS = /^\s*(depends-on(?:[.]d)?|depends-ms(?:[.]d)?|waits-for(?:[.]d)?|after|before|chain-to)\s*[:=]\s*([^#\s]+)/;
 
 /**
  * @typedef {typeof DEPENDENCY_TYPES[keyof typeof DEPENDENCY_TYPES]} DependencyKind
  * @typedef {{dependency: DependencyKind, namedService: string}} Dependency
  */
 
-//endregion "Types"
-
-//region "Path helpers"
+/** @type {ReadonlySet<string>} */
+const DependencyKinds = new Set(Object.values(DEPENDENCY_TYPES));
 
 /**
  * @param {string} value
@@ -69,10 +66,6 @@ function resolveNamedService(sourceFilePath, namedService) {
   return toAbsolutePath(path.join(path.dirname(sourceFilePath), namedService));
 }
 
-//endregion "Path helpers"
-
-//region "Functions"
-
 /**
  * @param {string[]} args
  * @returns {string}
@@ -81,16 +74,13 @@ function resolveNamedService(sourceFilePath, namedService) {
 export function serviceDirFromOptions(args) {
   const usage = "dinit-graph <service-directory>";
 
-  if (!args || args.length === 0 || args[0] === undefined) {
+  if (args.length === 0 || args[0] === undefined) {
     console.log(usage);
     process.exit(1);
   }
 
   return toAbsolutePath(fs.realpathSync(args[0]));
 }
-
-/** @type {ReadonlySet<string>} */
-const DependencyKinds = new Set(Object.values(DEPENDENCY_TYPES));
 
 /**
  * @param {string} value
@@ -117,6 +107,7 @@ function readFileContents(pathToFile) {
 /**
  * Parses one service-property line.
  * This function does not resolve paths. It only parses syntax.
+ *
  * @param {string} line
  * @returns {Dependency | undefined}
  * @exports
@@ -124,12 +115,11 @@ function readFileContents(pathToFile) {
 export function parseLineProperties(line) {
   const results = line.match(REGEX_PATTERN_DEP_PROPS);
 
-  if (!results || results[1] === undefined || results[2] === undefined) {
+  if (results === null || results[1] === undefined || results[2] === undefined) {
     return undefined;
   }
 
   const dependency = results[1];
-  const namedService = results[2];
 
   if (!isDependencyKind(dependency)) {
     return undefined;
@@ -137,13 +127,14 @@ export function parseLineProperties(line) {
 
   return {
     dependency,
-    namedService
+    namedService: results[2]
   };
 }
 
 /**
  * Parses all dependency properties from one service file.
  * All returned namedService values are absolute pathnames.
+ *
  * @param {string} serviceFilePath
  * @returns {Dependency[]}
  * @exports
@@ -172,6 +163,7 @@ export function parseFileProperties(serviceFilePath) {
 /**
  * Gets all non-directory service files from a directory recursively.
  * All returned values are absolute pathnames.
+ *
  * @param {string} dir
  * @returns {string[]}
  */
@@ -212,6 +204,42 @@ export function parseDirectoryProperties(targetDir) {
 }
 
 /**
+ * Adds one normal dependency edge.
+ *
+ * For dependency-like properties, the target must come before the source:
+ *
+ * target -> source
+ *
+ * @param {DirectedAcyclicGraph} depGraph
+ * @param {string} sourceServicePath
+ * @param {string} targetServicePath
+ * @returns {boolean} True if the target vertex was new before the edge was added.
+ */
+function addDependencyEdge(depGraph, sourceServicePath, targetServicePath) {
+  const targetWasNew = !depGraph.hasVertex(targetServicePath);
+  depGraph.addEdge(targetServicePath, sourceServicePath);
+  return targetWasNew;
+}
+
+/**
+ * Adds one ordering edge for before-like properties.
+ *
+ * For before-like properties, the source must come before the target:
+ *
+ * source -> target
+ *
+ * @param {DirectedAcyclicGraph} depGraph
+ * @param {string} sourceServicePath
+ * @param {string} targetServicePath
+ * @returns {boolean} True if the target vertex was new before the edge was added.
+ */
+function addBeforeEdge(depGraph, sourceServicePath, targetServicePath) {
+  const targetWasNew = !depGraph.hasVertex(targetServicePath);
+  depGraph.addEdge(sourceServicePath, targetServicePath);
+  return targetWasNew;
+}
+
+/**
  * Adds the dependencies found in the serviceDir to the graph and, if needed,
  * calls itself recursively to add children.
  *
@@ -229,22 +257,24 @@ export function addDependencies(depGraph, allServiceProperties, serviceFilePath)
 
   depGraph.addVertex(absoluteServiceFilePath);
 
-  if (!deps || deps.length === 0) {
+  if (deps === undefined || deps.length === 0) {
     return depGraph;
   }
 
-  for (const prop of deps.values()) {
+  for (const prop of deps) {
     const targetServicePath = toAbsolutePath(prop.namedService);
 
     if (
       prop.dependency === DEPENDENCY_TYPES.Before ||
       prop.dependency === DEPENDENCY_TYPES.ChainTo
     ) {
-      const wasAdded = depGraph.addVertex(targetServicePath);
+      const targetWasNew = addBeforeEdge(
+        depGraph,
+        absoluteServiceFilePath,
+        targetServicePath
+      );
 
-      depGraph.addEdge(targetServicePath, absoluteServiceFilePath);
-
-      if (wasAdded) {
+      if (targetWasNew) {
         depGraph = addDependencies(depGraph, allServiceProperties, targetServicePath);
       }
 
@@ -258,12 +288,14 @@ export function addDependencies(depGraph, allServiceProperties, serviceFilePath)
     ) {
       const serviceFiles = getFilesOfDir(targetServicePath);
 
-      for (const childServicePath of serviceFiles.values()) {
-        const wasAdded = depGraph.addVertex(childServicePath);
+      for (const childServicePath of serviceFiles) {
+        const childWasNew = addDependencyEdge(
+          depGraph,
+          absoluteServiceFilePath,
+          childServicePath
+        );
 
-        depGraph.addEdge(absoluteServiceFilePath, childServicePath);
-
-        if (wasAdded) {
+        if (childWasNew) {
           depGraph = addDependencies(depGraph, allServiceProperties, childServicePath);
         }
       }
@@ -271,11 +303,13 @@ export function addDependencies(depGraph, allServiceProperties, serviceFilePath)
       continue;
     }
 
-    const wasAdded = depGraph.addVertex(targetServicePath);
+    const targetWasNew = addDependencyEdge(
+      depGraph,
+      absoluteServiceFilePath,
+      targetServicePath
+    );
 
-    depGraph.addEdge(absoluteServiceFilePath, targetServicePath);
-
-    if (wasAdded) {
+    if (targetWasNew) {
       depGraph = addDependencies(depGraph, allServiceProperties, targetServicePath);
     }
   }
@@ -283,7 +317,17 @@ export function addDependencies(depGraph, allServiceProperties, serviceFilePath)
   return depGraph;
 }
 
-//endregion "Functions"
+/**
+ * Converts topological levels into a display string.
+ *
+ * @param {string[][]} levels
+ * @returns {string}
+ */
+function topologicalLevelsToString(levels) {
+  return levels
+    .map((level, index) => `Level ${index}: ${level.join(", ")}`)
+    .join("\n");
+}
 
 /**
  * The main entrypoint for this CLI app, the command dinit-graph.
@@ -300,7 +344,7 @@ function main_cli() {
   console.log("Building graph...");
   depGraph = addDependencies(depGraph, allServiceProperties, bootService);
 
-  let graphAsString = depGraph.toTopologicalLevelString();
+  let graphAsString = topologicalLevelsToString(depGraph.topologicalLevels());
 
   graphAsString = graphAsString.replaceAll(serviceDir, "");
 

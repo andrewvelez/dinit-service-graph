@@ -192,30 +192,6 @@ describe("DirectedAcyclicGraph", () => {
       expect(graph.topologicalSort()).toEqual(["a", "b"]);
     });
 
-    test("throws when adding an edge from a missing source vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-
-      graph.addVertex("b");
-
-      expect(() => graph.addEdge("a", "b")).toThrow(
-        "Source vertex a does not exist in the graph",
-      );
-
-      expect(graph.topologicalSort()).toEqual(["b"]);
-    });
-
-    test("throws when adding an edge to a missing destination vertex", () => {
-      const graph = new DirectedAcyclicGraph();
-
-      graph.addVertex("a");
-
-      expect(() => graph.addEdge("a", "b")).toThrow(
-        "Destination vertex b does not exist in the graph",
-      );
-
-      expect(graph.topologicalSort()).toEqual(["a"]);
-    });
-
     test("throws and leaves the graph valid when adding an edge would create a cycle", () => {
       const graph = new DirectedAcyclicGraph(
         createAdjacencyList([
