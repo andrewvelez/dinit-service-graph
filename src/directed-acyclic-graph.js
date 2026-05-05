@@ -147,6 +147,24 @@ export default class DirectedAcyclicGraph {
   }
 
   /**
+   * Returns all directed edges in the graph.
+   *
+   * @returns {Array<[string, string]>} Directed edges as [source, destination] pairs.
+   */
+  edges() {
+    /** @type {Array<[string, string]>} */
+    const result = [];
+
+    for (const [source, destinations] of this.#adjacencyList) {
+      for (const destination of destinations) {
+        result.push([source, destination]);
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Performs a topological sort using Kahn's algorithm and updates internal rankings.
    *
    * @returns {string[]} Vertices in topological order.

@@ -1,14 +1,16 @@
 #! /usr/bin/env bun
-
 /**
  * dinit-graph: a tool for visualizing the dinit service dependency directed acyclic graph
  * by: Andrew Velez
  */
 
+
 import * as fs from "node:fs";
 import * as path from "node:path";
 import DirectedAcyclicGraph from "./directed-acyclic-graph.js";
 
+
+// region " Types "
 /**
  * @readonly
  * @enum {string}
@@ -31,10 +33,12 @@ const REGEX_PATTERN_DEP_PROPS = /^\s*(depends-on(?:[.]d)?|depends-ms(?:[.]d)?|wa
  * @typedef {typeof DEPENDENCY_TYPES[keyof typeof DEPENDENCY_TYPES]} DependencyKind
  * @typedef {{dependency: DependencyKind, namedService: string}} Dependency
  */
-
 /** @type {ReadonlySet<string>} */
 const DependencyKinds = new Set(Object.values(DEPENDENCY_TYPES));
+// endregion
 
+
+// region " Functions "
 /**
  * @param {string} value
  * @returns {string}
@@ -44,26 +48,24 @@ function toAbsolutePath(value) {
 }
 
 /**
+ * @param {string} serviceDir
+ * @param {string} namedService
+ * @returns {string}
+ */
+function resolveNamedService(serviceDir, namedService) {
+  if (path.isAbsolute(namedService)) {
+    return toAbsolutePath(namedService);
+  }
+
+  return toAbsolutePath(path.join(serviceDir, namedService));
+}
+
+/**
  * @param {fs.Dirent} dirent
  * @returns {string}
  */
 function servicePathFromDirent(dirent) {
   return toAbsolutePath(path.join(dirent.parentPath, dirent.name));
-}
-
-/**
- * Resolves a service name found inside a service file to an absolute pathname.
- *
- * @param {string} sourceFilePath
- * @param {string} namedService
- * @returns {string}
- */
-function resolveNamedService(sourceFilePath, namedService) {
-  if (path.isAbsolute(namedService)) {
-    return toAbsolutePath(namedService);
-  }
-
-  return toAbsolutePath(path.join(path.dirname(sourceFilePath), namedService));
 }
 
 /**
@@ -136,11 +138,13 @@ export function parseLineProperties(line) {
  * All returned namedService values are absolute pathnames.
  *
  * @param {string} serviceFilePath
+ * @param {string} serviceDir
  * @returns {Dependency[]}
  * @exports
  */
-export function parseFileProperties(serviceFilePath) {
+export function parseFileProperties(serviceFilePath, serviceDir) {
   const absoluteServiceFilePath = toAbsolutePath(serviceFilePath);
+  const absoluteServiceDir = toAbsolutePath(serviceDir);
   const contents = readFileContents(absoluteServiceFilePath);
 
   /** @type {Dependency[]} */
@@ -152,7 +156,7 @@ export function parseFileProperties(serviceFilePath) {
     if (property !== undefined) {
       fileProperties.push({
         dependency: property.dependency,
-        namedService: resolveNamedService(absoluteServiceFilePath, property.namedService)
+        namedService: resolveNamedService(absoluteServiceDir, property.namedService)
       });
     }
   }
@@ -191,13 +195,15 @@ function getFilesOfDir(dir) {
  * @exports
  */
 export function parseDirectoryProperties(targetDir) {
+  const absoluteTargetDir = toAbsolutePath(targetDir);
+
   /** @type {Map<string, Dependency[]>} */
   const propMap = new Map();
 
-  const serviceFiles = getFilesOfDir(targetDir);
+  const serviceFiles = getFilesOfDir(absoluteTargetDir);
 
   for (const serviceFilePath of serviceFiles) {
-    propMap.set(serviceFilePath, parseFileProperties(serviceFilePath));
+    propMap.set(serviceFilePath, parseFileProperties(serviceFilePath, absoluteTargetDir));
   }
 
   return propMap;
@@ -328,7 +334,179 @@ function topologicalLevelsToString(levels) {
     .map((level, index) => `Level ${index}: ${level.join(", ")}`)
     .join("\n");
 }
+// endregion
 
+// region " Cytoscape integration "
+/**
+ * @typedef {{
+ *   data: {
+ *     id: string,
+ *     label?: string,
+ *     source?: string,
+ *     target?: string
+ *   },
+ *   position?: {
+ *     x: number,
+ *     y: number
+ *   }
+ * }} CytoscapeElement
+ */
+
+/**
+ * Converts a service pathname to a display label.
+ *
+ * @param {string} servicePath
+ * @param {string} serviceDir
+ * @returns {string}
+ */
+function serviceLabel(servicePath, serviceDir) {
+  return servicePath.replace(serviceDir, "") || servicePath;
+}
+
+/**
+ * Converts a DAG into Cytoscape elements using the graph's topological levels
+ * as fixed visual rows.
+ *
+ * @param {DirectedAcyclicGraph} depGraph
+ * @param {string} serviceDir
+ * @returns {CytoscapeElement[]}
+ */
+function graphToCytoscapeElements(depGraph, serviceDir) {
+  const levels = depGraph.topologicalLevels();
+
+  /** @type {CytoscapeElement[]} */
+  const elements = [];
+
+  const xSpacing = 260;
+  const ySpacing = 120;
+
+  for (let levelIndex = 0; levelIndex < levels.length; levelIndex += 1) {
+    const level = levels[levelIndex];
+
+    if (level === undefined) {
+      continue;
+    }
+
+    for (let nodeIndex = 0; nodeIndex < level.length; nodeIndex += 1) {
+      const servicePath = level[nodeIndex];
+
+      if (servicePath === undefined) {
+        continue;
+      }
+
+      elements.push({
+        data: {
+          id: servicePath,
+          label: serviceLabel(servicePath, serviceDir)
+        },
+        position: {
+          x: nodeIndex * xSpacing,
+          y: levelIndex * ySpacing
+        }
+      });
+    }
+  }
+
+  for (const [source, destination] of depGraph.edges()) {
+    elements.push({
+      data: {
+        id: `${source}->${destination}`,
+        source,
+        target: destination
+      }
+    });
+  }
+
+  return elements;
+}
+
+/**
+ * Escapes a string so it can be safely embedded inside an HTML script tag.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeScriptJson(value) {
+  return value.replaceAll("</script", "<\\/script");
+}
+
+/**
+ * Creates a standalone Cytoscape HTML document.
+ *
+ * @param {CytoscapeElement[]} elements
+ * @returns {string}
+ */
+function cytoscapeHtml(elements) {
+  const elementsJson = escapeScriptJson(JSON.stringify(elements, null, 2));
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dinit service graph</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    #cy {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="cy"></div>
+
+  <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+  <script>
+    const elements = ${elementsJson};
+
+    cytoscape({
+      container: document.getElementById("cy"),
+      elements,
+      layout: {
+        name: "preset"
+      },
+      style: [
+        {
+          selector: "node",
+          style: {
+            "label": "data(label)",
+            "text-valign": "center",
+            "text-halign": "center",
+            "font-size": "10px",
+            "width": 190,
+            "height": 36,
+            "shape": "round-rectangle",
+            "background-color": "#f5f5f5",
+            "border-width": 1,
+            "border-color": "#555"
+          }
+        },
+        {
+          selector: "edge",
+          style: {
+            "curve-style": "bezier",
+            "target-arrow-shape": "triangle",
+            "width": 2,
+            "line-color": "#999",
+            "target-arrow-color": "#999"
+          }
+        }
+      ]
+    });
+  </script>
+</body>
+</html>`;
+}
+// endregion
+
+// region " Main entry point "
 /**
  * The main entrypoint for this CLI app, the command dinit-graph.
  */
@@ -349,9 +527,18 @@ function main_cli() {
   graphAsString = graphAsString.replaceAll(serviceDir, "");
 
   console.log(graphAsString);
+
+  const cytoscapeElements = graphToCytoscapeElements(depGraph, serviceDir);
+  const html = cytoscapeHtml(cytoscapeElements);
+  const outputPath = path.join(process.cwd(), "dinit-service-graph.html");
+
+  fs.writeFileSync(outputPath, html, "utf-8");
+
+  console.log(`Wrote graph visualization to: ${outputPath}`);
 }
 
 // @ts-ignore
 if (import.meta.main) {
   main_cli();
 }
+// endregion

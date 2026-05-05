@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dinit service graph</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    #cy {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="cy"></div>
+
+  <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+  <script>
+    const elements = [
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "label": "/early-filesystems"
+    },
+    "position": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/netdev-enp3s0",
+      "label": "/netdev-enp3s0"
+    },
+    "position": {
+      "x": 260,
+      "y": 0
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "label": "/udevd"
+    },
+    "position": {
+      "x": 0,
+      "y": 120
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/modules",
+      "label": "/boot.d/modules"
+    },
+    "position": {
+      "x": 260,
+      "y": 120
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-trigger",
+      "label": "/udev-trigger"
+    },
+    "position": {
+      "x": 0,
+      "y": 240
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-settle",
+      "label": "/udev-settle"
+    },
+    "position": {
+      "x": 0,
+      "y": 360
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rootfscheck",
+      "label": "/rootfscheck"
+    },
+    "position": {
+      "x": 260,
+      "y": 360
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/hwclock",
+      "label": "/hwclock"
+    },
+    "position": {
+      "x": 0,
+      "y": 480
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "label": "/rootrw"
+    },
+    "position": {
+      "x": 0,
+      "y": 600
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck",
+      "label": "/auxfscheck"
+    },
+    "position": {
+      "x": 0,
+      "y": 720
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/filesystems",
+      "label": "/filesystems"
+    },
+    "position": {
+      "x": 0,
+      "y": 840
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "label": "/rcboot"
+    },
+    "position": {
+      "x": 0,
+      "y": 960
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/dbusd",
+      "label": "/dbusd"
+    },
+    "position": {
+      "x": 0,
+      "y": 1080
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/syslogd",
+      "label": "/syslogd"
+    },
+    "position": {
+      "x": 260,
+      "y": 1080
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd",
+      "label": "/boot.d/dhcpcd"
+    },
+    "position": {
+      "x": 520,
+      "y": 1080
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/late-filesystems",
+      "label": "/boot.d/late-filesystems"
+    },
+    "position": {
+      "x": 780,
+      "y": 1080
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "label": "/loginready"
+    },
+    "position": {
+      "x": 0,
+      "y": 1200
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty1",
+      "label": "/tty1"
+    },
+    "position": {
+      "x": 0,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty2",
+      "label": "/tty2"
+    },
+    "position": {
+      "x": 260,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty3",
+      "label": "/tty3"
+    },
+    "position": {
+      "x": 520,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty4",
+      "label": "/tty4"
+    },
+    "position": {
+      "x": 780,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty5",
+      "label": "/tty5"
+    },
+    "position": {
+      "x": 1040,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty6",
+      "label": "/tty6"
+    },
+    "position": {
+      "x": 1300,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd",
+      "label": "/boot.d/sshd"
+    },
+    "position": {
+      "x": 1560,
+      "y": 1320
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot",
+      "label": "/boot"
+    },
+    "position": {
+      "x": 0,
+      "y": 1440
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty1->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/tty1",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/tty1",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/tty1"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/tty2",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/tty2"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/tty3",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/tty3"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/tty4",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/tty4"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/tty5",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/tty5"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/tty6",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/tty6"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/loginready->/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot->/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/loginready"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot->/opt/dinit-0.21.0/doc/linux/services/dbusd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/dbusd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot->/opt/dinit-0.21.0/doc/linux/services/syslogd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/syslogd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot->/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot->/opt/dinit-0.21.0/doc/linux/services/boot.d/late-filesystems",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/late-filesystems"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rcboot->/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/filesystems->/opt/dinit-0.21.0/doc/linux/services/rcboot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rcboot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/filesystems",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/filesystems"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootrw"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/hwclock",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/hwclock"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/udev-settle",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/udev-settle"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/udev-trigger",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/udev-trigger"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/rootfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/auxfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udevd->/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/loginready"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems->/opt/dinit-0.21.0/doc/linux/services/udevd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/udevd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems->/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootrw"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems->/opt/dinit-0.21.0/doc/linux/services/hwclock",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/hwclock"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems->/opt/dinit-0.21.0/doc/linux/services/rootfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems->/opt/dinit-0.21.0/doc/linux/services/auxfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems->/opt/dinit-0.21.0/doc/linux/services/boot.d/modules",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/early-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/modules"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rootrw->/opt/dinit-0.21.0/doc/linux/services/filesystems",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/filesystems"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rootrw->/opt/dinit-0.21.0/doc/linux/services/auxfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/hwclock->/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/hwclock",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootrw"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-settle->/opt/dinit-0.21.0/doc/linux/services/hwclock",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udev-settle",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/hwclock"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-settle->/opt/dinit-0.21.0/doc/linux/services/auxfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udev-settle",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-settle->/opt/dinit-0.21.0/doc/linux/services/filesystems",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udev-settle",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/filesystems"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-trigger->/opt/dinit-0.21.0/doc/linux/services/udev-settle",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udev-trigger",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/udev-settle"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/udev-trigger->/opt/dinit-0.21.0/doc/linux/services/rootfscheck",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/udev-trigger",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootfscheck"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/rootfscheck->/opt/dinit-0.21.0/doc/linux/services/rootrw",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/rootfscheck",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/rootrw"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck->/opt/dinit-0.21.0/doc/linux/services/filesystems",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/auxfscheck",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/filesystems"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/dbusd->/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/dbusd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/loginready"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/syslogd->/opt/dinit-0.21.0/doc/linux/services/loginready",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/syslogd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/loginready"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/syslogd->/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/syslogd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty2->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/tty2",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty3->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/tty3",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty4->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/tty4",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty5->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/tty5",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/tty6->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/tty6",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/netdev-enp3s0->/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/netdev-enp3s0",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot.d/dhcpcd"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/late-filesystems->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/boot.d/late-filesystems",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/modules->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/boot.d/modules",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  },
+  {
+    "data": {
+      "id": "/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd->/opt/dinit-0.21.0/doc/linux/services/boot",
+      "source": "/opt/dinit-0.21.0/doc/linux/services/boot.d/sshd",
+      "target": "/opt/dinit-0.21.0/doc/linux/services/boot"
+    }
+  }
+];
+
+    cytoscape({
+      container: document.getElementById("cy"),
+      elements,
+      layout: {
+        name: "preset"
+      },
+      style: [
+        {
+          selector: "node",
+          style: {
+            "label": "data(label)",
+            "text-valign": "center",
+            "text-halign": "center",
+            "font-size": "10px",
+            "width": 190,
+            "height": 36,
+            "shape": "round-rectangle",
+            "background-color": "#f5f5f5",
+            "border-width": 1,
+            "border-color": "#555"
+          }
+        },
+        {
+          selector: "edge",
+          style: {
+            "curve-style": "bezier",
+            "target-arrow-shape": "triangle",
+            "width": 2,
+            "line-color": "#999",
+            "target-arrow-color": "#999"
+          }
+        }
+      ]
+    });
+  </script>
+</body>
+</html>
